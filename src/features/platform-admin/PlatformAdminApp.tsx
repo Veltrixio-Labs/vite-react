@@ -27,6 +27,15 @@ const fallbackTimezoneOptions = [
   { value: "UTC", label: "UTC" }
 ];
 
+interface ProvisionTenantResult {
+  tenant: { name: string };
+  databaseName: string;
+  provisioningStatus?: "ready" | "database_failed";
+  manualActionRequired?: boolean;
+  message?: string;
+  nextLoginUrl?: string;
+}
+
 function useAutoDismissNotice(notice: Notice | null, setNotice: Dispatch<SetStateAction<Notice | null>>) {
   useEffect(() => {
     if (!notice) {
@@ -173,22 +182,31 @@ export function PlatformAdminApp() {
     setNotice(null);
 
     try {
-      const result = await platformApi<{ tenant: { name: string }; nextLoginUrl: string }>(token, apiEndpoints.platformProvisionTenant, {
+      const result = await platformApi<ProvisionTenantResult>(token, apiEndpoints.platformProvisionTenant, {
         method: "POST",
         body: form
       });
-      setNotice({ kind: "success", text: `Provisioned ${result.tenant.name}. Customer URL: ${result.nextLoginUrl}` });
-      setForm({
-        slug: "",
-        name: "",
-        country: appConfig.defaultCountry,
-        currency: appConfig.defaultCurrency,
-        timezone: appConfig.defaultTimezone,
-        ownerName: "",
-        ownerEmail: "",
-        ownerPassword: "",
-        moduleCodes: []
-      });
+
+      if (result.manualActionRequired) {
+        setNotice({
+          kind: "error",
+          text: result.message ?? `Tenant ${result.tenant.name} was created, but database ${result.databaseName} needs manual provisioning.`
+        });
+      } else {
+        setNotice({ kind: "success", text: `Provisioned ${result.tenant.name}. Customer URL: ${result.nextLoginUrl}` });
+        setForm({
+          slug: "",
+          name: "",
+          country: appConfig.defaultCountry,
+          currency: appConfig.defaultCurrency,
+          timezone: appConfig.defaultTimezone,
+          ownerName: "",
+          ownerEmail: "",
+          ownerPassword: "",
+          moduleCodes: []
+        });
+      }
+
       setTab("customers");
       await loadPlatformData();
     } catch (error) {

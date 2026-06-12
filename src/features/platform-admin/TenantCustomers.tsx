@@ -119,6 +119,8 @@ export function TenantDetailModal({
 
   const domain = tenantHostForSlug(tenant.slug);
   const primaryDatabase = tenant.databases?.[0];
+  const databaseStatus = primaryDatabase?.status ?? "not_available";
+  const databaseNeedsAction = databaseStatus === "pending" || databaseStatus === "failed";
   const monthlyTotal = tenant.enabledModules.reduce((total, module) => total + (module.monthlyPrice ?? 0), 0);
   const enabledModuleCodes = new Set(tenant.enabledModules.map((module) => module.code));
   const currentBillingMode = tenant.billingMode ?? "trial";
@@ -156,6 +158,18 @@ export function TenantDetailModal({
           <DetailItem label="Schema version" value={primaryDatabase?.schemaVersion ?? "Not available"} />
           <DetailItem label="Database status" value={primaryDatabase?.status ?? "Not available"} />
         </div>
+
+        {databaseNeedsAction ? (
+          <NoticeBanner
+            notice={{
+              kind: "error",
+              text:
+                databaseStatus === "failed"
+                  ? `Database provisioning failed for ${primaryDatabase?.databaseName}. Create that MySQL database manually if needed, then retry provisioning with the same slug and owner details.`
+                  : `Database provisioning is pending for ${primaryDatabase?.databaseName}. Tenant users cannot sign in until the database is active.`
+            }}
+          />
+        ) : null}
 
         <form
           className="modal-section"
