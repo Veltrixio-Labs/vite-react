@@ -1,4 +1,4 @@
-const appDomain = import.meta.env.VITE_APP_DOMAIN ?? "veltrixio.com";
+const appDomain = normalizeHost(import.meta.env.VITE_APP_DOMAIN ?? "veltrixio.com");
 const adminSubdomain = import.meta.env.VITE_ADMIN_SUBDOMAIN ?? "admin";
 const defaultTenantSlug = optionalEnv(import.meta.env.VITE_DEFAULT_TENANT_SLUG) ?? "";
 const websiteUrl = import.meta.env.VITE_WEBSITE_URL ?? `https://${appDomain}`;
@@ -6,6 +6,11 @@ const logoUrl = import.meta.env.VITE_LOGO_URL ?? "/logo.png";
 
 function optionalEnv(value: string | undefined) {
   return value?.trim() || undefined;
+}
+
+function normalizeHost(value: string) {
+  const trimmed = value.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  return trimmed.split(":")[0] || trimmed;
 }
 
 function parseFooterLinks(value: string | undefined) {
@@ -44,11 +49,11 @@ export const appConfig = {
     import.meta.env.VITE_PRODUCT_TAGLINE ??
     "Business cloud software for shops, bookings, and operations.",
   appDomain,
-  adminHost: import.meta.env.VITE_ADMIN_HOST ?? `${adminSubdomain}.${appDomain}`,
-  localAdminHost: import.meta.env.VITE_LOCAL_ADMIN_HOST ?? "admin.localhost",
+  adminHost: normalizeHost(import.meta.env.VITE_ADMIN_HOST ?? `${adminSubdomain}.${appDomain}`),
+  localAdminHost: normalizeHost(import.meta.env.VITE_LOCAL_ADMIN_HOST ?? "admin.localhost"),
   apiBaseUrl: (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, ""),
   defaultTenantSlug,
-  defaultTenantHost: optionalEnv(import.meta.env.VITE_DEFAULT_TENANT_HOST) ?? (defaultTenantSlug ? `${defaultTenantSlug}.${appDomain}` : appDomain),
+  defaultTenantHost: normalizeHost(optionalEnv(import.meta.env.VITE_DEFAULT_TENANT_HOST) ?? (defaultTenantSlug ? `${defaultTenantSlug}.${appDomain}` : appDomain)),
   defaultCountry: import.meta.env.VITE_DEFAULT_COUNTRY ?? "Sri Lanka",
   defaultCurrency: import.meta.env.VITE_DEFAULT_CURRENCY ?? "LKR",
   defaultTimezone: import.meta.env.VITE_DEFAULT_TIMEZONE ?? "Asia/Colombo",
