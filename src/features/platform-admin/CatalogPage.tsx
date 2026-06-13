@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Badge, EmptyState, Field, NoticeBanner, SectionHeader, StatusBadge, Tabs, TextAreaField, ToggleField } from "../../app/components/ui";
 import { slugify } from "../../app/app-helpers";
 import type { PlatformModule, PlatformProduct } from "../../app/types";
+import { appConfig } from "../../config";
 
 export function CatalogManager({
   products,
@@ -102,7 +103,13 @@ export function CatalogManager({
           <form className={editingProductCode ? "panel form-grid edit-active-form" : "panel form-grid"} ref={productFormRef} onSubmit={onSaveProduct}>
             <SectionHeader icon={<Store size={20} />} title={editingProductCode ? "Edit Product" : "Create Product"} />
             {editingProductCode ? <NoticeBanner notice={{ kind: "info", text: `Editing product '${editingProductCode}'. Save changes or cancel to return to create mode.` }} /> : null}
-            <Field label="Product code" value={productForm.code} onChange={(value) => onProductForm((current) => ({ ...current, code: slugify(value) }))} placeholder="vendorcore" />
+            <CatalogCodeField
+              label="Product code"
+              value={productForm.code}
+              options={appConfig.productCodeOptions}
+              placeholder="my-product"
+              onChange={(value) => onProductForm((current) => ({ ...current, code: value }))}
+            />
             <Field label="Product name" value={productForm.name} onChange={(value) => onProductForm((current) => ({ ...current, name: value }))} placeholder="VendorCore Business Cloud" />
             <TextAreaField label="Description" value={productForm.description} onChange={(value) => onProductForm((current) => ({ ...current, description: value }))} />
             <ToggleField label="Active product" checked={productForm.isActive} onChange={(value) => onProductForm((current) => ({ ...current, isActive: value }))} />
@@ -138,7 +145,13 @@ export function CatalogManager({
               </select>
             </label>
             <div className="two-col">
-              <Field label="Module code" value={moduleForm.code} onChange={(value) => onModuleForm((current) => ({ ...current, code: slugify(value), path: current.path || `/${slugify(value)}` }))} placeholder="inventory" />
+              <CatalogCodeField
+                label="Module code"
+                value={moduleForm.code}
+                options={appConfig.moduleCodeOptions}
+                placeholder="my-module"
+                onChange={(value) => onModuleForm((current) => ({ ...current, code: value, path: current.path || `/${value}` }))}
+              />
               <Field label="Path" value={moduleForm.path} onChange={(value) => onModuleForm((current) => ({ ...current, path: value }))} placeholder="/inventory" />
             </div>
             <Field label="Module name" value={moduleForm.name} onChange={(value) => onModuleForm((current) => ({ ...current, name: value }))} placeholder="Inventory" />
@@ -164,6 +177,70 @@ export function CatalogManager({
         </section>
       ) : null}
     </section>
+  );
+}
+
+function labelForCode(code: string) {
+  return code
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((word) => word[0]?.toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function CatalogCodeField({
+  label,
+  value,
+  options,
+  placeholder,
+  onChange
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  const [customMode, setCustomMode] = useState(Boolean(value && !options.includes(value)));
+  const presetValue = value && options.includes(value) && !customMode ? value : customMode || value ? "custom" : "";
+  const customSelected = presetValue === "custom";
+
+  useEffect(() => {
+    if (value && !options.includes(value)) {
+      setCustomMode(true);
+    }
+  }, [options, value]);
+
+  return (
+    <div className="field">
+      <span>{label}</span>
+      <select
+        value={presetValue}
+        onChange={(event) => {
+          const nextValue = event.target.value;
+          setCustomMode(nextValue === "custom");
+          onChange(nextValue === "custom" ? "" : nextValue);
+        }}
+        required
+      >
+        <option value="">Select code</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option === "custom" ? "Custom code" : labelForCode(option)}
+          </option>
+        ))}
+      </select>
+      {customSelected ? (
+        <input
+          type="text"
+          value={value}
+          placeholder={placeholder}
+          onChange={(event) => onChange(slugify(event.target.value))}
+          required
+        />
+      ) : null}
+      <small>Preset values come from the environment. Choose custom when this needs a unique new code.</small>
+    </div>
   );
 }
 

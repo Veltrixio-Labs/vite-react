@@ -3,6 +3,18 @@ const adminSubdomain = import.meta.env.VITE_ADMIN_SUBDOMAIN ?? "admin";
 const defaultTenantSlug = optionalEnv(import.meta.env.VITE_DEFAULT_TENANT_SLUG) ?? "";
 const websiteUrl = import.meta.env.VITE_WEBSITE_URL ?? `https://${appDomain}`;
 const logoUrl = import.meta.env.VITE_LOGO_URL ?? "/logo.png";
+const defaultCatalogCodeOptions = [
+  "website",
+  "inventory",
+  "pos",
+  "booking",
+  "scoreboard",
+  "ecommerce",
+  "employee_management",
+  "school_management",
+  "reports",
+  "custom"
+];
 
 function optionalEnv(value: string | undefined) {
   return value?.trim() || undefined;
@@ -37,6 +49,16 @@ function parseFooterLinks(value: string | undefined) {
   return links.length ? links : fallback;
 }
 
+function parseCsvOptions(value: string | undefined, fallback: string[]) {
+  const options = value
+    ?.split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const uniqueOptions = Array.from(new Set(options?.length ? options : fallback));
+  return uniqueOptions.includes("custom") ? uniqueOptions : [...uniqueOptions, "custom"];
+}
+
 export const appConfig = {
   brandName: import.meta.env.VITE_BRAND_NAME ?? "Veltrixio",
   companyName: import.meta.env.VITE_COMPANY_NAME ?? "Veltrixio Labs",
@@ -57,7 +79,9 @@ export const appConfig = {
   defaultCountry: import.meta.env.VITE_DEFAULT_COUNTRY ?? "Sri Lanka",
   defaultCurrency: import.meta.env.VITE_DEFAULT_CURRENCY ?? "LKR",
   defaultTimezone: import.meta.env.VITE_DEFAULT_TIMEZONE ?? "Asia/Colombo",
-  logoUrl
+  logoUrl,
+  productCodeOptions: parseCsvOptions(import.meta.env.VITE_PRODUCT_CODE_OPTIONS, defaultCatalogCodeOptions),
+  moduleCodeOptions: parseCsvOptions(import.meta.env.VITE_MODULE_CODE_OPTIONS, defaultCatalogCodeOptions)
 };
 
 export const apiEndpoints = {
