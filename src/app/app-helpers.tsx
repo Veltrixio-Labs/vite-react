@@ -72,11 +72,25 @@ export function isUnauthorized(error: unknown) {
 }
 
 export function platformUserIdFromPlatformToken(token: string) {
+  return platformTokenPayload(token)?.sub ?? null;
+}
+
+export function platformPermissionsFromPlatformToken(token: string) {
+  return platformTokenPayload(token)?.permissions ?? [];
+}
+
+function platformTokenPayload(token: string) {
   try {
     const encodedPayload = token.split(".")[0] ?? "";
     const normalizedPayload = encodedPayload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(encodedPayload.length / 4) * 4, "=");
-    const payload = JSON.parse(atob(normalizedPayload)) as { sub?: unknown };
-    return typeof payload.sub === "string" ? payload.sub : null;
+    const payload = JSON.parse(atob(normalizedPayload)) as { sub?: unknown; permissions?: unknown };
+
+    return {
+      sub: typeof payload.sub === "string" ? payload.sub : null,
+      permissions: Array.isArray(payload.permissions) && payload.permissions.every((permission) => typeof permission === "string")
+        ? payload.permissions
+        : []
+    };
   } catch {
     return null;
   }

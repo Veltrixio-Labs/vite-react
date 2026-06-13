@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiEndpoints, appConfig, tenantHostForSlug } from "../../config";
 import { DashboardShell } from "../../app/components/layout";
 import { AuthScreen, Badge, CheckList, ConfirmDialog, DetailItem, EmptyState, Field, HelpPanel, InlineStatus, Metric, NoticeBanner, NoticeToast, PageHeader, SectionHeader, SelectField, StatusBadge, Tabs, TextAreaField, ToggleField, UserList } from "../../app/components/ui";
-import { api, dateInputValue, emptyModuleScheduleForm, errorMessage, formatDate, isUnauthorized, moduleScheduleForms, nextMonthDateInput, platformApi, platformUserIdFromPlatformToken, renderIcon, shouldShowSuspensionNotice, slugify, tenantModuleNotices } from "../../app/app-helpers";
+import { api, dateInputValue, emptyModuleScheduleForm, errorMessage, formatDate, isUnauthorized, moduleScheduleForms, nextMonthDateInput, platformApi, platformPermissionsFromPlatformToken, platformUserIdFromPlatformToken, renderIcon, shouldShowSuspensionNotice, slugify, tenantModuleNotices } from "../../app/app-helpers";
 import type { ConfirmDialogState, Notice, PlatformModule, PlatformPermission, PlatformProduct, PlatformTab, PlatformTenant, PlatformUser, ReferenceOption } from "../../app/types";
 import { CatalogManager } from "./CatalogPage";
 import { PlatformOverview } from "./PlatformOverview";
@@ -51,6 +51,7 @@ export function PlatformAdminApp() {
   const [tab, setTab] = useState<PlatformTab>("overview");
   const [token, setToken] = useState(() => localStorage.getItem("platformAccessToken") ?? "");
   const [currentPlatformUserId, setCurrentPlatformUserId] = useState(() => platformUserIdFromPlatformToken(localStorage.getItem("platformAccessToken") ?? ""));
+  const [currentPlatformPermissions, setCurrentPlatformPermissions] = useState(() => platformPermissionsFromPlatformToken(localStorage.getItem("platformAccessToken") ?? ""));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -124,6 +125,7 @@ export function PlatformAdminApp() {
       localStorage.setItem("platformAccessToken", result.accessToken);
       setToken(result.accessToken);
       setCurrentPlatformUserId(platformUserIdFromPlatformToken(result.accessToken));
+      setCurrentPlatformPermissions(platformPermissionsFromPlatformToken(result.accessToken));
       setEmail("");
       setPassword("");
       setNotice({ kind: "success", text: "Platform login successful." });
@@ -137,13 +139,24 @@ export function PlatformAdminApp() {
   async function loadPlatformData() {
     setLoading(true);
     try {
+      const permissions = platformPermissionsFromPlatformToken(token);
+      const canViewTenants = permissions.includes("platform.tenants.view");
+      const canViewModules = permissions.includes("platform.modules.view");
+      const canViewUsers = permissions.includes("platform.users.view");
+
+      if (!canViewTenants && !canViewModules && !canViewUsers) {
+        setNotice({ kind: "error", text: "This platform user has no dashboard permissions. Sign in as a super admin or update platform staff permissions." });
+        return;
+      }
+
       const [tenantList, moduleList, productList, userList, permissionResult] = await Promise.all([
-        platformApi<PlatformTenant[]>(token, apiEndpoints.platformTenants),
-        platformApi<PlatformModule[]>(token, apiEndpoints.platformModules),
-        platformApi<PlatformProduct[]>(token, apiEndpoints.platformProducts),
-        platformApi<PlatformUser[]>(token, apiEndpoints.platformUsers),
-        platformApi<{ permissions: PlatformPermission[] }>(token, apiEndpoints.platformPermissions)
+        canViewTenants ? platformApi<PlatformTenant[]>(token, apiEndpoints.platformTenants) : Promise.resolve([]),
+        canViewModules ? platformApi<PlatformModule[]>(token, apiEndpoints.platformModules) : Promise.resolve([]),
+        canViewModules ? platformApi<PlatformProduct[]>(token, apiEndpoints.platformProducts) : Promise.resolve([]),
+        canViewUsers ? platformApi<PlatformUser[]>(token, apiEndpoints.platformUsers) : Promise.resolve([]),
+        canViewUsers ? platformApi<{ permissions: PlatformPermission[] }>(token, apiEndpoints.platformPermissions) : Promise.resolve({ permissions: [] })
       ]);
+
       setTenants(tenantList);
       setModules(moduleList);
       setProducts(productList);
@@ -530,6 +543,7 @@ export function PlatformAdminApp() {
     localStorage.removeItem("platformAccessToken");
     setToken("");
     setCurrentPlatformUserId(null);
+    setCurrentPlatformPermissions([]);
   }
 
   function toggleModule(code: string) {
@@ -570,6 +584,17 @@ export function PlatformAdminApp() {
       <LogOut size={18} />
     </button>
   );
+  const canViewTenants = currentPlatformPermissions.includes("platform.tenants.view");
+  const canProvisionTenants = currentPlatformPermissions.includes("platform.tenants.provision");
+  const canViewModules = currentPlatformPermissions.includes("platform.modules.view");
+  const canViewStaff = currentPlatformPermissions.includes("platform.users.view");
+  const visibleTabs: Array<[PlatformTab, string]> = [
+    ["overview", "Overview"],
+    ...(canProvisionTenants ? [["provision", "Provision"] as [PlatformTab, string]] : []),
+    ...(canViewTenants ? [["customers", "Customers"] as [PlatformTab, string]] : []),
+    ...(canViewModules ? [["catalog", "Catalog"] as [PlatformTab, string]] : []),
+    ...(canViewStaff ? [["staff", "Staff"] as [PlatformTab, string]] : [])
+  ];
 
   return (
     <DashboardShell
@@ -587,13 +612,7 @@ export function PlatformAdminApp() {
         action={platformActions}
       />
       <Tabs
-        items={[
-          ["overview", "Overview"],
-          ["provision", "Provision"],
-          ["customers", "Customers"],
-          ["catalog", "Catalog"],
-          ["staff", "Staff"]
-        ]}
+        items={visibleTabs}
         active={tab}
         onChange={(value) => setTab(value as PlatformTab)}
       />
