@@ -250,6 +250,13 @@ export function PlatformAdminApp() {
   }
 
   async function updateTenantStatus(slug: string, status: string) {
+    const tenant = tenants.find((item) => item.slug === slug);
+
+    if (tenant?.status === "suspended" && status === "suspended") {
+      setNotice({ kind: "info", text: `${tenant.name} is already suspended.` });
+      return;
+    }
+
     setConfirmDialog({
       title: status === "suspended" ? "Suspend Workspace Access" : "Reactivate Workspace Access",
       message:
@@ -332,6 +339,34 @@ export function PlatformAdminApp() {
       await loadPlatformData();
     } catch (error) {
       setNotice({ kind: "error", text: errorMessage(error, "Tenant suspension clear failed.") });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function confirmDeleteTenant(tenant: PlatformTenant) {
+    setConfirmDialog({
+      title: "Delete Tenant Permanently",
+      message: `This will permanently delete ${tenant.name}, its tenant data, domain records, module access, and owner workspace. This cannot be undone.`,
+      confirmLabel: "Delete Permanently",
+      tone: "danger",
+      onConfirm: () => void deleteTenant(tenant.slug)
+    });
+  }
+
+  async function deleteTenant(slug: string) {
+    setLoading(true);
+    setNotice(null);
+
+    try {
+      await platformApi<{ deleted: boolean; slug: string }>(token, apiEndpoints.platformTenant(slug), {
+        method: "DELETE"
+      });
+      setNotice({ kind: "success", text: `Tenant ${slug} was permanently deleted.` });
+      setSelectedTenant(null);
+      await loadPlatformData();
+    } catch (error) {
+      setNotice({ kind: "error", text: errorMessage(error, "Tenant deletion failed.") });
     } finally {
       setLoading(false);
     }
@@ -706,6 +741,7 @@ export function PlatformAdminApp() {
           onClearSuspension={clearTenantSuspension}
           onBillingPolicy={updateTenantBillingPolicy}
           onTenantModule={updateTenantModule}
+          onDeleteTenant={confirmDeleteTenant}
         />
       ) : null}
       {confirmDialog ? <ConfirmDialog dialog={confirmDialog} onCancel={() => setConfirmDialog(null)} onConfirm={() => {

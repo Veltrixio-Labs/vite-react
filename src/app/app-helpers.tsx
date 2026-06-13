@@ -136,7 +136,7 @@ export function defaultWebsiteSettings(businessName: string): TenantWebsiteSetti
 export function emptyModuleScheduleForm() {
   return {
     billingCycle: "monthly",
-    startsAt: dateInputValue(new Date()),
+    startsAt: "",
     expiresAt: "",
     tenantNote: "",
     internalNote: ""
@@ -152,7 +152,7 @@ export function moduleScheduleForms(availableModules: PlatformModule[], enabledM
         module.code,
         {
           billingCycle: enabled?.billingCycle ?? "monthly",
-          startsAt: dateInputValue(enabled?.startsAt) || dateInputValue(new Date()),
+          startsAt: dateInputValue(enabled?.startsAt),
           expiresAt: dateInputValue(enabled?.expiresAt),
           tenantNote: enabled?.tenantNote ?? "",
           internalNote: ""

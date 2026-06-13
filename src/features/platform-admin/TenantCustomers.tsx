@@ -70,7 +70,8 @@ export function TenantDetailModal({
   onImmediateSuspension,
   onClearSuspension,
   onBillingPolicy,
-  onTenantModule
+  onTenantModule,
+  onDeleteTenant
 }: {
   tenant: PlatformTenant;
   availableModules: PlatformModule[];
@@ -84,6 +85,7 @@ export function TenantDetailModal({
     moduleCode: string,
     body: { enabled: boolean; billingCycle?: string; startsAt?: string; expiresAt?: string; tenantNote?: string; internalNote?: string }
   ) => void;
+  onDeleteTenant: (tenant: PlatformTenant) => void;
 }) {
   const [suspensionForm, setSuspensionForm] = useState({
     effectiveAt: dateInputValue(tenant.suspensionEffectiveAt) || nextMonthDateInput(),
@@ -127,6 +129,7 @@ export function TenantDetailModal({
   const currentSuspensionPolicy = tenant.suspensionPolicy ?? "standard";
   const suspensionDisabled = currentSuspensionPolicy === "disabled";
   const scheduleSuspensionDisabled = suspensionDisabled || currentSuspensionPolicy === "manual_only" || currentBillingMode === "internal";
+  const tenantIsSuspended = tenant.status === "suspended";
 
   return (
     <div className="modal-layer" role="presentation">
@@ -264,7 +267,7 @@ export function TenantDetailModal({
                         <option value="annual">Annual</option>
                       </select>
                     </label>
-                    <Field label="Start" type="date" value={form.startsAt} onChange={(value) => setModuleForms((current) => ({ ...current, [module.code]: { ...form, startsAt: value } }))} />
+                    <Field label="Start date (blank = now)" type="date" value={form.startsAt} onChange={(value) => setModuleForms((current) => ({ ...current, [module.code]: { ...form, startsAt: value } }))} />
                     <Field label="Expiry" type="date" value={form.expiresAt} onChange={(value) => setModuleForms((current) => ({ ...current, [module.code]: { ...form, expiresAt: value } }))} />
                     <TextAreaField label="Tenant note" value={form.tenantNote} onChange={(value) => setModuleForms((current) => ({ ...current, [module.code]: { ...form, tenantNote: value } }))} />
                     <TextAreaField label="Internal note" value={form.internalNote} onChange={(value) => setModuleForms((current) => ({ ...current, [module.code]: { ...form, internalNote: value } }))} />
@@ -332,10 +335,11 @@ export function TenantDetailModal({
             <button
               className="secondary-button danger"
               type="button"
-              disabled={suspensionDisabled}
+              disabled={suspensionDisabled || tenantIsSuspended}
+              title={tenantIsSuspended ? "Tenant is already suspended" : undefined}
               onClick={() => onImmediateSuspension(tenant.slug, suspensionForm.reason)}
             >
-              Suspend Immediately
+              {tenantIsSuspended ? "Already Suspended" : "Suspend Immediately"}
             </button>
             {tenant.suspensionEffectiveAt ? (
               <button className="secondary-button" type="button" onClick={() => onClearSuspension(tenant.slug)}>
@@ -344,6 +348,21 @@ export function TenantDetailModal({
             ) : null}
           </div>
         </form>
+
+        <div className="modal-section suspension-panel">
+          <SectionHeader icon={<ShieldCheck size={20} />} title="Danger Zone" />
+          <NoticeBanner
+            notice={{
+              kind: "error",
+              text: "Permanent deletion removes this tenant, domain, module assignments, platform records, and tenant data from the shared tenant database. This cannot be undone."
+            }}
+          />
+          <div className="action-row wrap">
+            <button className="secondary-button danger" type="button" onClick={() => onDeleteTenant(tenant)}>
+              Delete Tenant Permanently
+            </button>
+          </div>
+        </div>
       </section>
     </div>
   );

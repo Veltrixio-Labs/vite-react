@@ -70,6 +70,7 @@ export const apiEndpoints = {
   platformUsers: "/api/platform/admin/users",
   platformPermissions: "/api/platform/admin/permissions",
   platformProvisionTenant: "/api/platform/admin/tenants/provision",
+  platformTenant: (slug: string) => `/api/platform/admin/tenants/${slug}`,
   platformTenantBillingPolicy: (slug: string) => `/api/platform/admin/tenants/${slug}/billing-policy`,
   platformTenantModule: (slug: string, moduleCode: string) => `/api/platform/admin/tenants/${slug}/modules/${moduleCode}`,
   tenantLogin: "/api/auth/login",
